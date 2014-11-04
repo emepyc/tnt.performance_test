@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>TnT Themes</title>
+
+<div id="body">
+
+  <!-- D3 -->
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+
+  <!-- canvg && SVG.toDataURL-->
+  <script src="lib/canvg.js"></script>
+  <script src="lib/svg_todataurl.js"></script>
+
+  <!-- tnt -->
+  <link rel="stylesheet" href="lib/tnt.css" type="text/css" />
+  <script src="lib/tnt.js"></script>
+
+  <script src="performance_test.js"></script>
+
+  <h1>A Performance Test of Tracks</h1>
+  <div id="myboard"></div>
+  <script>
+    (function() {
+        var board = tnt.board();
+        var theme = tnt_theme();
+        theme (board, document.getElementById("myboard"));
+    })();
+ 
+  </script>
+
+  <footer>
+    <aside>Released under <a href="http://www.opensource.org/licenses/apache2.0.php">Apache 2.0</a>.</aside>
+    Copyright 2014 <a href="http://www.ebi.ac.uk/~mp" rel="author">Miguel Pignatelli</a>
+  </footer>
+
+</div>
