@@ -1179,6 +1179,7 @@ var tnt_track_render = function () {
     };
 
     rend.msg = function (conf) {
+	// console.log(JSON.stringify(conf));
 	return JSON.stringify(conf);
     };
 
@@ -1274,7 +1275,8 @@ tnt.track.render.websocket = function () {
 
     wsconn.onopen = function () {
 	console.log("WebSocket connection stablished");
-	wsconn.send(msg);
+	// console.log("SENDING MSG (ONOPEN):" + msg)
+	// wsconn.send(msg);
     };
 
     wsconn.onmessage = function (resp) {
@@ -1336,8 +1338,10 @@ tnt.board = function() {
     var drag_allowed = true;
 
     var exports = {
+	async_limits  : undefined,
 	axis          : true,
 	render        : null,
+	refresh       : 300,
 	// use_image     : false,
 	// use_server    : false,
 	// use_websocket : false,
@@ -1506,8 +1510,9 @@ tnt.board = function() {
 	_place_tracks();
 
 	// The continuation callback
-	var cont = function (resp) {
-	    limits.right = resp;
+	var cont = function () {
+	    // async_limits needs to be called only once
+	    exports.async_limits = undefined;
 
 	    // zoomEventHandler.xExtent([limits.left, limits.right]);
 	    if ((loc.to - loc.from) < limits.zoom_in) {
@@ -1527,28 +1532,21 @@ tnt.board = function() {
 	    if (exports.render) {
 		exports.render.update(get_conf());
 	    }
-	    // svg -> png rendering
-	    // if (exports.use_image) {
-	    // 	if (exports.use_server) {
-	    // 	    zoom_img.get_backup_img(get_conf());
-	    // 	} else {
-	    // 	zoom_img.get_backup_img();
-	    // 	}
-	    // }
-   
 	};
 
-	// If limits.right is a function, we have to call it asynchronously and
-	// then starting the plot once we have set the right limit (plot)
-	// If not, we assume that it is an objet with new (maybe partially defined)
-	// definitions of the limits and we can plot directly
-	// TODO: Right now, only right can be called as an async function which is weak
-	if (typeof (limits.right) === 'function') {
-	    limits.right(cont);
+	// If async_limits is a function, we have to call it asynchronously and
+	// then starting the plot once we have set the correct limits (plot)
+	// If not, we assume that all the limits have been set before using the API
+	// In the continuation callback, async_limits is reset (set to undef).
+	// this is to avoid re-setting loc.to to loc.right everytime start is called
+	// (it is called several times when 'render' is used for example)
+	var async_limits = exports.async_limits;
+	if (async_limits && typeof (async_limits) === 'function') {
+	// if (typeof (limits.right) === 'function') {
+	    async_limits(cont);
 	} else {
-	    cont(limits.right);
+	    cont();
 	}
-
     });
 
     api.method ('update', function () {
@@ -1584,15 +1582,17 @@ tnt.board = function() {
 		       .on("zoom", _move)
 		     );
 	    // zoom_img = tnt_track_render (tracks_svg, img_div, zoomEventHandler)
-	    exports.render
-		.conf ({
-		    tracks_svg : tracks_svg,
-		    img_div    : img_div,
-		    zoom       : zoomEventHandler
-		});
+	    if (exports.render) {
+		exports.render
+		    .conf ({
+			tracks_svg : tracks_svg,
+			img_div    : img_div,
+			zoom       : zoomEventHandler
+		    });
 		// .render(exports.render);
 		// .use_server(exports.use_server)
 		// .use_websocket(exports.use_websocket)
+	    }
 	}
 
     };
@@ -1924,7 +1924,7 @@ tnt.board = function() {
     };
 
     // The deferred_cbak is deferred at least this amount of time or re-scheduled if deferred is called before
-    var _deferred = tnt.utils.defer_cancel(_move_cbak, 1000);
+    var _deferred = tnt.utils.defer_cancel(_move_cbak, exports.refresh);
 
     var _move = function (new_xScale) {
 	if (new_xScale !== undefined && drag_allowed) {
@@ -1959,7 +1959,8 @@ tnt.board = function() {
 	// Avoid moving past the limits
 	if (domain[0] < limits.left) {
 	    zoomEventHandler.translate([zoomEventHandler.translate()[0] - xScale(limits.left) + xScale.range()[0], zoomEventHandler.translate()[1]]);
-	} else if (domain[1] > limits.right) {
+	}
+	else if (domain[1] > limits.right) {
 	    zoomEventHandler.translate([zoomEventHandler.translate()[0] - xScale(limits.right) + xScale.range()[1], zoomEventHandler.translate()[1]]);
 	}
 
@@ -3074,6 +3075,8 @@ tnt.track.feature.empty = function () {
     feature.init = function () {};
     feature.update = function () {};
     feature.move = function () {};
+    feature.static = function () {};
+    feature.reset = function () {};
     return feature;
 };
 
@@ -4942,7 +4945,7 @@ tnt.tree_annot = function () {
 		};
 		var track = tree_conf.track(leaves[i])
 		    .height(height)
-		    .name(leaf.node_name());
+		    .track_name(leaf.node_name());
 
 		tracks.push (track);
 

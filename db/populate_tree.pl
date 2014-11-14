@@ -14,10 +14,15 @@ use Bio::EnsEMBL::Compara::Utils::GeneTreeHash;
 $MongoDB::BSON::looks_like_number = 1;
 my $mongo = MongoDB::MongoClient->new(host => 'localhost', port => 27017);
 my $db = $mongo->get_database('genetrees');
-my $col = $db->get_collection('genetree');
-# Indexes
-$col->ensure_index({id => 1}, {unique => 1});
-#$col->ensure_index({});
+my $annot_col = $db->get_collection('annot');
+my $tree_col = $db->get_collection('tree');
+# Indexes on annot
+$annot_col->ensure_index({id => 1}, {unique => 1});
+$annot_col->ensure_index({length => 1});
+$annot_col->ensure_index({gaps => 1});
+$annot_col->ensure_index({exon_boundaries => 1});
+# Indexes on tree
+$tree_col->ensure_index({id => 1}, {unique => 1});
 
 # GeneTrees
 my $reg = 'Bio::EnsEMBL::Registry';
@@ -31,8 +36,18 @@ my ($gene_tree_stable_id) = @ARGV;
 $gene_tree_stable_id ||= 'ENSGT00440000034289';
 my $gtAdaptor = $reg->get_adaptor('Multi', 'Compara', 'GeneTree');
 my $geneTree = $gtAdaptor->fetch_by_stable_id($gene_tree_stable_id);
-my $tree_hash = Bio::EnsEMBL::Compara::Utils::GeneTreeHash->convert($geneTree, -EXON_BOUNDARIES=>1, GAPS=>1);
-visit($tree_hash->{tree});
+my $treeHash = Bio::EnsEMBL::Compara::Utils::GeneTreeHash->convert($geneTree, -EXON_BOUNDARIES=>1, GAPS=>1, ALIGNED=>1);
+
+# Store the tree in tree collection in newick format
+my $newick = $geneTree->newick_format("ryo", "%{-i}%{o-}:%{d}");
+
+my $treeData = {
+		id => $treeHash->{id},
+		newick => $newick
+	       };
+
+$tree_col->insert($treeData);
+visit($treeHash->{tree}, $treeHash->{id});
 
 
 # mongoDB node format:
@@ -48,18 +63,20 @@ visit($tree_hash->{tree});
 # 	}]
 # }
 sub visit {
-    my ($node) = @_;
+    my ($node, $genetree_stable_id) = @_;
     my $nodeDbData = {
-	"id" => $node->{id}{accession},
-	"seq" => $node->{sequence}{mol_seq}{seq} || '',
-	"exon_boundaries" => $node->{exon_boundaries}->{positions} || [],
-	"gaps" => $node->{no_gaps} || []
+		      "genetree" => $genetree_stable_id,
+		      "id" => $node->{id}{accession},
+		      "seq" => $node->{sequence}{mol_seq}{seq} || '',
+		      "exon_boundaries" => $node->{exon_boundaries}->{positions} || [],
+		      "gaps" => $node->{no_gaps} || [],
+		      "length" => length($node->{sequence}{mol_seq}{seq} || '')
     };
-    $col->insert($nodeDbData);
+    $annot_col->insert($nodeDbData);
     my $children = $node->{children};
     if (defined $children) {
 	for (my $i=0; $i<scalar @$children; $i++) {
-	    visit($children->[$i]);
+	    visit($children->[$i], $genetree_stable_id);
 	}
     }
 }

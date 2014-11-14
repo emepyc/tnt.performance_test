@@ -59,7 +59,25 @@ func (p *PostData) String() string {
 	return s
 }
 
-func (d DbDatum) String() string {
-	s := fmt.Sprintf("%s (%d:%d) ", d.Name, d.Start, d.End)
+func (g Gap) String() string {
+	s := fmt.Sprintf("(%d:%d[%s])", g.Start, g.End, g.Type)
 	return s
 }
+
+func (gs Gaps) String() string {
+	s := ""
+	for _, g := range gs {
+		s += fmt.Sprintf("%s ", g)
+	}
+	return s
+}
+
+func (d DbDatum) String() string {
+	s := fmt.Sprintf("ID: %s\nSEQ: %s\nLEN: %d\nGAPS: %s\nEXONS:%s\n", d.Id, d.Seq, len(d.Seq), d.Gaps, d.ExonBoundaries)
+	return s
+}
+
+// func (d DbDatum) String() string {
+// 	s := fmt.Sprintf("%s (%d:%d) ", d.Name, d.Start, d.End)
+// 	return s
+// }

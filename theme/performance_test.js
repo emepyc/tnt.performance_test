@@ -36,14 +36,20 @@ var tnt_theme = tnt_theme_track_performance_test = function () {
     var theme = function (board, div) {
 	board
 	    .axis(true)
-	    .render (tnt.track.render.websocket())
-	    // .use_image(true)
-	    // .use_server(true)
-	    // .use_websocket(true)
+	    .render (tnt.track.render.http())
 	    .from(0)
 	    .width(800)
-	    .to(1000)
-	    .right(1000);
+	    .to(100)
+	    .async_limits(function (done) {
+	    	d3.json("/limit", function (err, resp) {
+	    	    if (err) {
+	    		throw (err)
+	    	    }
+		    board.zoom_out(resp.right);
+		    board.right(resp.right);
+	    	    done();
+	    	})
+	    });
 
 	for (var i=0; i<20; i++) {
 	    board
