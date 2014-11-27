@@ -6,7 +6,6 @@ var tnt_theme = tnt_theme_track_performance_test = function () {
     // Tree side
     var tree = tnt.tree()
 	.data (tnt.tree.parse_newick (newick))
-	.node_circle_size(2)
         .layout (tnt.tree.layout.vertical()
                  .width(400)
                  .scale(false)
@@ -27,11 +26,14 @@ var tnt_theme = tnt_theme_track_performance_test = function () {
     // Annotation side
     var annot = tnt.board()
 	.axis(true)
-	.render (tnt.track.render.websocket())
+	.render (tnt.track.render.http())
 	.width(800)
 	.from(0)
 	.async_limits(function (done) {
-	    d3.json("/limit", function (err, resp) {
+	    // All the leaves have the same aln length, so any leaf would work for limit retrieval
+	    // TODO: check for is_collapsed in the leaf?
+	    var node_name = tree.root().get_all_leaves()[0].node_name();
+	    d3.json("/limit?node="+node_name, function (err, resp) {
 		if (err) {
 		    throw (err);
 		}
@@ -40,7 +42,7 @@ var tnt_theme = tnt_theme_track_performance_test = function () {
 		annot.right(resp.limit);
 		done();
 	    });
-	});
+        });
     
     // Track creation side
     var track = function (leaf_node) {

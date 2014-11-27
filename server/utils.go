@@ -72,7 +72,7 @@ func (gs Gaps) String() string {
 	return s
 }
 
-func (d DbDatum) String() string {
+func (d NodeDatum) String() string {
 	s := fmt.Sprintf("ID: %s\nSEQ: %s\nLEN: %d\nGAPS: %s\nEXONS:%s\n", d.Id, d.Seq, len(d.Seq), d.Gaps, d.ExonBoundaries)
 	return s
 }
